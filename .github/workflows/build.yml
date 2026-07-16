@@ -1,0 +1,71 @@
+name: Scrape and deploy
+
+on:
+  schedule:
+    # Twice daily. GitHub cron is UTC: 10:17 and 22:17 UTC.
+    # (Since March 2026 you can add `timezone:` next to a cron line if you prefer local time.)
+    - cron: "17 10,22 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch: {} # adds a manual "Run workflow" button
+
+# The token needs contents:write to commit refreshed data, plus the Pages scopes.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Never let two deploys clobber each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install scraper deps
+        working-directory: scraper
+        run: npm install
+
+      - name: Scrape sources
+        working-directory: scraper
+        # Real run. If adapters aren't wired up yet (or every source blocks us),
+        # the scraper preserves the existing listings.json instead of blanking it.
+        run: npm run scrape
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/public/listings.json
+          git commit -m "data: refresh listings [skip ci]" || echo "No data changes."
+          git push || echo "Nothing to push."
+
+      - name: Install site deps
+        working-directory: site
+        run: npm install
+
+      - name: Build site
+        working-directory: site
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

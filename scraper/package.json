@@ -1,0 +1,14 @@
+{
+  "name": "weekend-rounds-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scrapes estate-sale sources and writes a normalized listings.json",
+  "scripts": {
+    "scrape": "node index.js",
+    "scrape:sample": "SAMPLE=1 node index.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}

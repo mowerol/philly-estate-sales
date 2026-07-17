@@ -27,7 +27,12 @@ export default function Card({ r, terms, saved, onSave, showDate, selected, onHo
           {r.distanceMi != null && <span className="es-dist">{r.distanceMi.toFixed(1)} mi</span>}
           {times && <span className="es-mi"><Icon name="clock" size={13} />{times}</span>}
           <span className="es-type">{r.saleType}</span>
-          {showDate && <span className="es-dist">{fmtRange(r.start, r.end)}</span>}
+          {showDate && r.start && <span className="es-dist">{fmtRange(r.start, r.end)}</span>}
+          {showDate && !r.start && (
+            <span className="es-dist" title="Raw scraper date fields">
+              unparsed date: {r.startDate ?? "null"} → {r.endDate ?? "null"}
+            </span>
+          )}
         </div>
         {r.description && <p className="es-desc">{highlight(r.description, terms)}</p>}
         {r.matches.length > 0 && (

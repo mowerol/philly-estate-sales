@@ -70,6 +70,9 @@ const clean = (v) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : v)
 const time = (v) => (/^\d{1,2}:\d{2}$/.test(v || "") ? v : null);
 function isoDate(v) {
   if (!v) return null;
-  const d = new Date(v);
+  // estatesales.org omits the leading zero on single-digit hours (e.g. "T9:00-04:00"),
+  // which native Date parsing rejects as invalid ISO 8601.
+  const padded = typeof v === "string" ? v.replace(/T(\d):/, "T0$1:") : v;
+  const d = new Date(padded);
   return isNaN(d) ? null : d.toISOString().slice(0, 10);
 }

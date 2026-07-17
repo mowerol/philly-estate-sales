@@ -71,8 +71,9 @@ function mapSaleType(typeName) {
 }
 
 function localTimeOf(isoWithOffset) {
-  const m = (isoWithOffset || "").match(/T(\d{2}:\d{2})/);
-  return m ? m[1] : null;
+  // Hour may be a single digit with no leading zero (e.g. "T9:00-04:00").
+  const m = (isoWithOffset || "").match(/T(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : null;
 }
 
 function htmlToText(html) {

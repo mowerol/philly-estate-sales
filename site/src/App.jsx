@@ -12,7 +12,7 @@ import {
   load, save, parseDate, relTime, startOfToday, eachDay,
 } from "./utils.jsx";
 
-const DEFAULT_RADIUS = 10;
+const DEFAULT_RADIUS = 25;
 
 export default function App() {
   const [status, setStatus] = useState("loading"); // loading | ready | error
@@ -65,13 +65,16 @@ export default function App() {
     setSaved((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const processed = useMemo(() => {
+    // Keep listings whose date couldn't be parsed instead of silently dropping
+    // them — they surface as a "needs review" group at the end so bad scraper
+    // data is visible rather than invisible.
     return (data.listings || []).map((r) => {
       const start = parseDate(r.startDate);
       const end = parseDate(r.endDate) || start;
       const hay = (r.title + " " + r.description).toLowerCase();
       const matches = activeTerms.filter((t) => hay.includes(t));
       return { ...r, start, end, matches, relevance: matches.length };
-    }).filter((r) => r.start);
+    });
   }, [data, activeTerms.join(",")]);
 
   const filtered = useMemo(() => {
@@ -83,6 +86,7 @@ export default function App() {
       if (onlyMatches && r.relevance === 0) return false;
       if (inPersonOnly && r.saleType === "online") return false;
       if (q && !(r.title + " " + r.description + " " + r.company).toLowerCase().includes(q)) return false;
+      if (!r.start) return true; // can't date-filter what we couldn't parse — always surface it
       if (r.end < today) return false; // hide finished sales
       if (dateWindow !== "all") {
         const days = Math.round((r.start - today) / 86400000);
@@ -100,20 +104,25 @@ export default function App() {
   const sorted = useMemo(() => {
     const arr = [...filtered];
     const far = Number.POSITIVE_INFINITY;
-    if (sort === "distance") arr.sort((a, b) => (a.distanceMi ?? far) - (b.distanceMi ?? far));
-    else if (sort === "relevance") arr.sort((a, b) => b.relevance - a.relevance || a.start - b.start);
-    else arr.sort((a, b) => a.start - b.start || (a.distanceMi ?? far) - (b.distanceMi ?? far));
+    const byValidity = (a, b) => (a.start ? 0 : 1) - (b.start ? 0 : 1); // undated always last
+    if (sort === "distance") arr.sort((a, b) => byValidity(a, b) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
+    else if (sort === "relevance") arr.sort((a, b) => byValidity(a, b) || b.relevance - a.relevance || (a.start ?? far) - (b.start ?? far));
+    else arr.sort((a, b) => byValidity(a, b) || (a.start ?? far) - (b.start ?? far) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
     return arr;
   }, [filtered, sort]);
 
   const groups = useMemo(() => {
     const map = new Map();
+    const needsReview = [];
     for (const r of sorted) {
+      if (!r.start) { needsReview.push(r); continue; }
       const key = r.start.toDateString();
       if (!map.has(key)) map.set(key, { date: r.start, items: [] });
       map.get(key).items.push(r);
     }
-    return [...map.values()];
+    const out = [...map.values()];
+    if (needsReview.length) out.push({ date: null, items: needsReview });
+    return out;
   }, [sorted]);
 
   const flat = sort !== "date";
@@ -219,6 +228,18 @@ export default function App() {
               {flat
                 ? sorted.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)
                 : groups.map((g) => {
+                    if (!g.date) {
+                      return (
+                        <section key="needs-review">
+                          <div className="es-daybar">
+                            <span className="es-daydate">Needs review · date didn't parse</span>
+                            <span className="es-dayrule" />
+                            <span className="es-daycount">{g.items.length} sale{g.items.length === 1 ? "" : "s"}</span>
+                          </div>
+                          {g.items.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)}
+                        </section>
+                      );
+                    }
                     const soon = [5, 6, 0].includes(g.date.getDay());
                     return (
                       <section key={g.date.toDateString()}>

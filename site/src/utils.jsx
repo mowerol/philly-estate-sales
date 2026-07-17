@@ -7,7 +7,6 @@ export const ORIGIN_LNG = -75.226;
 export const SOURCES = {
   net: { code: "ES.NET", label: "estatesales.net", dot: "#2D6CDF" },
   org: { code: "ES.ORG", label: "estatesales.org", dot: "#7A4FBF" },
-  com: { code: "ES.COM", label: "estatesale.com", dot: "#C77D18" },
 };
 
 export const DEFAULT_INTERESTS = [

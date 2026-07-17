@@ -18,7 +18,7 @@ export default function App() {
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [data, setData] = useState({ listings: [], generatedAt: null });
 
-  const [sources, setSources] = useState({ net: true, org: true, com: true });
+  const [sources, setSources] = useState({ net: true, org: true });
   const [radius, setRadius] = useState(DEFAULT_RADIUS);
   const [dateWindow, setDateWindow] = useState("all");
   const [query, setQuery] = useState("");
@@ -117,10 +117,11 @@ export default function App() {
   }, [sorted]);
 
   const flat = sort !== "date";
+  const sourceKeys = Object.keys(sources);
   const activeSources = Object.values(sources).filter(Boolean).length;
 
   const filterCount =
-    (3 - activeSources) +
+    (sourceKeys.length - activeSources) +
     (radius !== DEFAULT_RADIUS ? 1 : 0) +
     (onlyMatches ? 1 : 0);
 
@@ -157,7 +158,7 @@ export default function App() {
             </button>
             <span className="es-sync es-mono">
               {status === "ready" && data.generatedAt ? <>Synced <b>{relTime(data.generatedAt)}</b> · </> : null}
-              {activeSources}/3 sources
+              {activeSources}/{sourceKeys.length} sources
             </span>
           </div>
         </div>

@@ -7,7 +7,6 @@ import { sampleListings } from "./sample.js";
 
 import { scrape as scrapeNet } from "./adapters/estatesales-net.js";
 import { scrape as scrapeOrg } from "./adapters/estatesales-org.js";
-import { scrape as scrapeCom } from "./adapters/estatesale-com.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.OUT || path.resolve(__dirname, "../site/public/listings.json");
@@ -15,7 +14,6 @@ const OUT = process.env.OUT || path.resolve(__dirname, "../site/public/listings.
 const ADAPTERS = [
   { key: "net", run: scrapeNet },
   { key: "org", run: scrapeOrg },
-  { key: "com", run: scrapeCom },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,7 +24,7 @@ async function run() {
   let shaped = [];
   if (useSample) {
     console.log("SAMPLE mode: writing bundled sample data.");
-    shaped = sampleListings().map((r) => shapeListing(r, r.sourceUrl.includes(".org") ? "org" : r.sourceUrl.includes(".com") ? "com" : "net"));
+    shaped = sampleListings().map((r) => shapeListing(r, r.sourceUrl.includes(".org") ? "org" : "net"));
   } else {
     for (const { key, run } of ADAPTERS) {
       if (!ENABLED[key]) continue;

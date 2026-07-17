@@ -30,7 +30,7 @@ export function shapeListing(raw, source) {
   const endDate = isoDate(raw.endDate) || startDate;
   return {
     id: raw.id || makeId(source, [raw.sourceUrl, raw.addressLine, startDate, raw.title].join("|")),
-    source, // 'net' | 'org' | 'com'
+    source, // 'net' | 'org'
     sourceUrl: raw.sourceUrl || "",
     title: clean(raw.title) || "Untitled sale",
     company: clean(raw.company) || "",

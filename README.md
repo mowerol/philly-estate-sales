@@ -1,9 +1,12 @@
 # Weekend Rounds
 
 A free, self-hosting estate-sale collator. A scheduled GitHub Action scrapes
-estatesales.net, estatesales.org, and estatesale.com, normalizes everything into
-one schema, and GitHub Pages serves a React frontend that reads the result. No
-server, no paid services.
+estatesales.net and estatesales.org, normalizes everything into one schema, and
+GitHub Pages serves a React frontend that reads the result. No server, no paid
+services.
+
+(estatesale.com was evaluated and dropped — it sits entirely behind an Imperva/
+Incapsula bot challenge with no legitimate opening, so it isn't wired up.)
 
 ## How it works
 
@@ -11,7 +14,7 @@ server, no paid services.
  GitHub Action (cron)          GitHub Pages (static)
  ┌─────────────────┐           ┌──────────────────┐
  │ scraper/ (Node) │  writes   │ site/ (React)    │
- │  three adapters │──────────▶│  fetches         │
+ │  two adapters   │──────────▶│  fetches         │
  │  → normalize    │ listings  │  listings.json   │
  │  → listings.json│  .json    │  at runtime      │
  └─────────────────┘           └──────────────────┘
@@ -35,22 +38,23 @@ very first deploy, before the scrapers are wired to real data.
 > If the data-commit step fails with a permissions error, set
 > **Settings → Actions → General → Workflow permissions** to **Read and write**.
 
-## Wiring up real data
+## How the adapters work
 
-The three adapters in `scraper/adapters/` are skeletons. I can't see the live DOM
-or internal endpoints of these sites from where this was built, so the selectors
-and URLs need verifying against the real pages:
+Both adapters in `scraper/adapters/` are wired to real data — no headless browser
+needed, since both sites are server-rendered:
 
-- Open each site in your browser, filter to your ZIP.
-- Open **DevTools → Network → Fetch/XHR** and reload.
-- **estatesales.net** almost certainly returns sales as JSON from an internal API
-  (it powers their app). If you find that request, use it directly. JSON is far more
-  stable than parsing HTML. The adapter has a marked spot for the API URL.
-- For the others, inspect a sale card in the Elements panel and update the CSS
-  selectors in the adapter to match.
+- **estatesales.net** — parses per-card `ld+json` blocks plus an embedded NGRX state
+  blob for lat/lng and picture counts. The listing page only server-renders ~20
+  sales, so the adapter queries several nearby zips (`scraper/zips.js`) and dedupes
+  by sale id. Real descriptions require a detail-page fetch per sale (concurrency
+  limited, rate-limited).
+- **estatesales.org** — the entire result set, including full rich descriptions, is
+  embedded as `window.pageData.listings` JSON right on the search page, which
+  natively supports `?radius=&p=` pagination. No detail-page fetches needed.
 
 Each adapter returns loosely-shaped objects; `scraper/normalize.js` forces them into
-the canonical schema, so you only touch the adapter files.
+the canonical schema, so if you add another source you only need to touch a new
+adapter file.
 
 The scraper is defensive: if a source throws or returns nothing, it's skipped, and
 if the whole run yields zero listings it keeps the previous `listings.json` rather
@@ -83,7 +87,7 @@ cd scraper && npm run scrape
 ```jsonc
 {
   "id": "net_ab12cd34ef",
-  "source": "net",           // 'net' | 'org' | 'com'
+  "source": "net",           // 'net' | 'org'
   "sourceUrl": "https://…",
   "title": "…",
   "company": "…",
@@ -93,7 +97,7 @@ cd scraper && npm run scrape
   "startDate": "2026-07-18", "endDate": "2026-07-20",
   "startTime": "09:00", "endTime": "15:00",
   "description": "…",
-  "imageCount": 42
+  "imageCount": 42, "imageUrl": "https://… | null"
 }
 ```
 

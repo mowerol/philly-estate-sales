@@ -18,5 +18,4 @@ export const REQUEST_DELAY_MS = 1500; // pause between requests to one source
 export const ENABLED = {
   net: true, // estatesales.net
   org: true, // estatesales.org
-  com: true, // estatesale.com
 };

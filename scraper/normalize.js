@@ -48,6 +48,7 @@ export function shapeListing(raw, source) {
     endTime: time(raw.endTime),
     description: clean(raw.description) || "",
     imageCount: Number.isFinite(+raw.imageCount) ? +raw.imageCount : 0,
+    imageUrl: raw.imageUrl || null,
   };
 }
 

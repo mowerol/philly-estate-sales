@@ -10,15 +10,11 @@ export const SOURCES: Record<Source, { code: string; label: string; dot: string 
   org: { code: "ES.ORG", label: "estatesales.org", dot: "#7A4FBF" },
 };
 
-export const DEFAULT_INTERESTS = [
-  "mid-century", "teak", "danish", "camera", "film",
-  "guitar", "vinyl", "records", "cast iron", "lighting", "tools",
-];
-
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const DATA_URL = `${import.meta.env.BASE_URL}listings.json`;
+export const LOGO_URL = `${import.meta.env.BASE_URL}estate-logo.svg`;
 
 // --- small localStorage helpers (safe if storage is unavailable) ---
 export function load<T>(key: string, fallback: T): T {

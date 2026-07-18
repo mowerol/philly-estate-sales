@@ -8,7 +8,7 @@ import PreferencesModal from "./components/PreferencesModal";
 import SavedModal from "./components/SavedModal";
 import Icon from "./components/Icon";
 import {
-  ORIGIN, DEFAULT_INTERESTS, WEEKDAYS, MONTHS, DATA_URL,
+  ORIGIN, WEEKDAYS, MONTHS, DATA_URL, LOGO_URL,
   load, save, parseDate, relTime, startOfToday, eachDay,
 } from "./utils";
 import type { Interest, ListingsData, ProcessedListing, Source } from "./types";
@@ -28,9 +28,7 @@ export default function App() {
   const [sort, setSort] = useState("date");
   const [onlyMatches, setOnlyMatches] = useState(false);
   const [inPersonOnly, setInPersonOnly] = useState(false);
-  const [interests, setInterests] = useState<Interest[]>(() =>
-    load("wr:interests", DEFAULT_INTERESTS.map((t) => ({ term: t, active: true })))
-  );
+  const [interests, setInterests] = useState<Interest[]>(() => load("wr:interests", []));
   const [saved, setSaved] = useState<Set<string>>(() => new Set(load<string[]>("wr:saved", [])));
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -160,8 +158,9 @@ export default function App() {
       <header className="es-top">
         <div className="es-top-in">
           <div className="es-brand">
-            <span className="es-brandmark" />
-            <h1 className="es-title es-disp">Estate Sales Watch</h1>
+            <h1 className="es-title">
+              <img className="es-logo" src={LOGO_URL} alt="AllEstateSales" />
+            </h1>
           </div>
           <div className="es-locwrap">
             <button className="es-locpill" type="button">

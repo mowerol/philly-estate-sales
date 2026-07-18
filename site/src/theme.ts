@@ -18,9 +18,9 @@ const config = defineConfig({
         matchSoft: { value: "#e4ede8" },
       },
       fonts: {
-        heading: { value: "'Playfair Display', serif" },
-        body: { value: "'Inter', system-ui, sans-serif" },
-        mono: { value: "'Space Mono', ui-monospace, monospace" },
+        heading: { value: "'Fraunces', serif" },
+        body: { value: "'Epilogue', system-ui, sans-serif" },
+        mono: { value: "'JetBrains Mono', ui-monospace, monospace" },
       },
       radii: {
         l2: { value: "10px" },

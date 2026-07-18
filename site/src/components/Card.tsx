@@ -59,7 +59,7 @@ export default function Card({ r, terms, saved, onSave, showDate, selected, onHo
       <Box
         position="relative"
         w={{ base: "100%", sm: "170px" }}
-        h={{ base: "200px", sm: "126px" }}
+        h={{ base: "200px", sm: "170px" }}
         borderRadius="l2"
         bg="paper2"
         border="1px solid"

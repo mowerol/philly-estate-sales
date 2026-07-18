@@ -1,10 +1,17 @@
 import { Menu, Portal } from "@chakra-ui/react";
-import Icon from "./Icon.jsx";
+import Icon from "./Icon";
 
-const SORTS = [["date", "Soonest"], ["distance", "Nearest"], ["relevance", "Best match"]];
-const WINDOWS = [["weekend", "This weekend"], ["7d", "Next 7 days"], ["all", "All upcoming"]];
+const SORTS: [string, string][] = [["date", "Soonest"], ["distance", "Nearest"], ["relevance", "Best match"]];
+const WINDOWS: [string, string][] = [["weekend", "This weekend"], ["7d", "Next 7 days"], ["all", "All upcoming"]];
 
-function Dropdown({ label, options, value, onChange }) {
+interface DropdownProps {
+  label?: string;
+  options: [string, string][];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function Dropdown({ label, options, value, onChange }: DropdownProps) {
   const current = options.find(([v]) => v === value)?.[1];
   return (
     <Menu.Root positioning={{ placement: "bottom-start" }}>
@@ -29,10 +36,24 @@ function Dropdown({ label, options, value, onChange }) {
   );
 }
 
+interface FilterBarProps {
+  query: string;
+  setQuery: (v: string) => void;
+  sort: string;
+  setSort: (v: string) => void;
+  dateWindow: string;
+  setDateWindow: (v: string) => void;
+  inPersonOnly: boolean;
+  setInPersonOnly: (v: boolean) => void;
+  onOpenFilters: () => void;
+  filterCount: number;
+  resultCount: number;
+}
+
 export default function FilterBar({
   query, setQuery, sort, setSort, dateWindow, setDateWindow,
   inPersonOnly, setInPersonOnly, onOpenFilters, filterCount, resultCount,
-}) {
+}: FilterBarProps) {
   return (
     <div className="es-filterbar">
       <div className="es-search es-search--bar">

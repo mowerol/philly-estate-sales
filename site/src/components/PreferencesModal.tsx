@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Dialog, Portal, CloseButton } from "@chakra-ui/react";
-import Icon from "./Icon.jsx";
-import { ORIGIN } from "../utils.jsx";
+import Icon from "./Icon";
+import { ORIGIN } from "../utils";
+import type { Interest } from "../types";
 
-export default function PreferencesModal({ open, onClose, interests, toggleInterest, addInterest, removeInterest }) {
+interface PreferencesModalProps {
+  open: boolean;
+  onClose: () => void;
+  interests: Interest[];
+  toggleInterest: (term: string) => void;
+  addInterest: (term: string) => void;
+  removeInterest: (term: string) => void;
+}
+
+export default function PreferencesModal({ open, onClose, interests, toggleInterest, addInterest, removeInterest }: PreferencesModalProps) {
   const [draft, setDraft] = useState("");
 
-  const submit = (e) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     const term = draft.trim().toLowerCase();
     if (!term) return;

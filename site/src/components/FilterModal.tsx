@@ -1,6 +1,18 @@
 import { Dialog, Portal, CloseButton } from "@chakra-ui/react";
-import Icon from "./Icon.jsx";
-import { SOURCES, ORIGIN } from "../utils.jsx";
+import Icon from "./Icon";
+import { SOURCES, ORIGIN } from "../utils";
+import type { Source } from "../types";
+
+interface FilterModalProps {
+  open: boolean;
+  onClose: () => void;
+  sources: Record<Source, boolean>;
+  toggleSource: (key: Source) => void;
+  radius: number;
+  setRadius: (v: number) => void;
+  onlyMatches: boolean;
+  setOnlyMatches: (updater: (v: boolean) => boolean) => void;
+}
 
 export default function FilterModal({
   open,
@@ -11,7 +23,7 @@ export default function FilterModal({
   setRadius,
   onlyMatches,
   setOnlyMatches,
-}) {
+}: FilterModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} placement="center" size="md">
       <Portal>
@@ -28,7 +40,7 @@ export default function FilterModal({
             <Dialog.Body className="es-dialog-body">
               <div className="es-panel">
                 <p className="es-plabel">Sources</p>
-                {Object.entries(SOURCES).map(([k, s]) => (
+                {(Object.entries(SOURCES) as [Source, (typeof SOURCES)[Source]][]).map(([k, s]) => (
                   <div key={k} className="es-row" data-on={sources[k]} onClick={() => toggleSource(k)}>
                     <span className="es-check"><Icon name="bookmarkFill" /></span>
                     <span className="es-dot" style={{ background: s.dot }} />

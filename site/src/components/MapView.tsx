@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, Popup, NavigationControl, useMap } from "react-map-gl/maplibre";
-import { PIN_PATH_D } from "./Icon.jsx";
-import { ORIGIN_LAT, ORIGIN_LNG } from "../utils.jsx";
+import { PIN_PATH_D } from "./Icon";
+import { ORIGIN_LAT, ORIGIN_LNG } from "../utils";
+import type { ProcessedListing } from "../types";
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY;
 const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
 
-function Pin({ selected, hovered }) {
+function Pin({ selected, hovered }: { selected: boolean; hovered: boolean }) {
   const active = selected || hovered;
   const fill = selected ? "#1f6e5b" : "#c8462e";
   const size = active ? 34 : 26;
@@ -18,9 +19,11 @@ function Pin({ selected, hovered }) {
   );
 }
 
-function FitToPoints({ points }) {
+type MapPoint = ProcessedListing & { lat: number; lng: number };
+
+function FitToPoints({ points }: { points: MapPoint[] }) {
   const { current: map } = useMap();
-  const fitted = useRef(null);
+  const fitted = useRef<string | null>(null);
   useEffect(() => {
     if (!map) return;
     const key = points.map((p) => p.id).join(",");
@@ -44,10 +47,19 @@ function FitToPoints({ points }) {
   return null;
 }
 
-export default function MapView({ listings, selectedId, hoveredId, onSelect, onHoverStart, onHoverEnd }) {
-  const [popupId, setPopupId] = useState(null);
+interface MapViewProps {
+  listings: ProcessedListing[];
+  selectedId: string | null;
+  hoveredId: string | null;
+  onSelect: (id: string | null) => void;
+  onHoverStart: (id: string | null) => void;
+  onHoverEnd: () => void;
+}
+
+export default function MapView({ listings, selectedId, hoveredId, onSelect, onHoverStart, onHoverEnd }: MapViewProps) {
+  const [popupId, setPopupId] = useState<string | null>(null);
   const points = useMemo(
-    () => listings.filter((r) => r.lat != null && r.lng != null),
+    () => listings.filter((r): r is MapPoint => r.lat != null && r.lng != null),
     [listings]
   );
   const popupPoint = points.find((p) => p.id === popupId);

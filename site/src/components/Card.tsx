@@ -1,7 +1,20 @@
-import Icon from "./Icon.jsx";
-import { SOURCES, fmtTime, fmtRange, highlight } from "../utils.jsx";
+import Icon from "./Icon";
+import { SOURCES, fmtTime, fmtRange, highlight } from "../utils";
+import type { ProcessedListing } from "../types";
 
-export default function Card({ r, terms, saved, onSave, showDate, selected, onHoverStart, onHoverEnd, onSelect }) {
+interface CardProps {
+  r: ProcessedListing;
+  terms: string[];
+  saved: boolean;
+  onSave: () => void;
+  showDate?: boolean;
+  selected: boolean;
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+  onSelect: () => void;
+}
+
+export default function Card({ r, terms, saved, onSave, showDate, selected, onHoverStart, onHoverEnd, onSelect }: CardProps) {
   const src = SOURCES[r.source] || SOURCES.net;
   const times = fmtTime(r.startTime) && fmtTime(r.endTime) ? `${fmtTime(r.startTime)}–${fmtTime(r.endTime)}` : null;
 

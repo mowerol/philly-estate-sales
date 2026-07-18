@@ -1,9 +1,18 @@
 import { Dialog, Portal, CloseButton } from "@chakra-ui/react";
-import Card from "./Card.jsx";
+import Card from "./Card";
+import type { ProcessedListing } from "../types";
 
 const noop = () => {};
 
-export default function SavedModal({ open, onClose, listings, terms, onSave }) {
+interface SavedModalProps {
+  open: boolean;
+  onClose: () => void;
+  listings: ProcessedListing[];
+  terms: string[];
+  onSave: (id: string) => void;
+}
+
+export default function SavedModal({ open, onClose, listings, terms, onSave }: SavedModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} placement="center" size="lg">
       <Portal>

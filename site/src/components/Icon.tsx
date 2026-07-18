@@ -1,5 +1,11 @@
-export default function Icon({ name, size = 16 }) {
-  const c = {
+import type { SVGProps } from "react";
+
+export type IconName =
+  | "pin" | "clock" | "search" | "ext" | "bookmark" | "bookmarkFill" | "img"
+  | "filter" | "chevronDown" | "close" | "map" | "list" | "gear" | "plus";
+
+export default function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+  const c: SVGProps<SVGSVGElement> = {
     width: size,
     height: size,
     viewBox: "0 0 24 24",

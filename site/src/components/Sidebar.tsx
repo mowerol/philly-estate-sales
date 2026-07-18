@@ -1,6 +1,12 @@
-import Icon from "./Icon.jsx";
+import Icon from "./Icon";
 
-export default function Sidebar({ onOpenPreferences, onOpenSaved, savedCount }) {
+interface SidebarProps {
+  onOpenPreferences: () => void;
+  onOpenSaved: () => void;
+  savedCount: number;
+}
+
+export default function Sidebar({ onOpenPreferences, onOpenSaved, savedCount }: SidebarProps) {
   return (
     <nav className="es-rail">
       <button className="es-railitem" data-active="true" type="button">

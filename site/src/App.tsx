@@ -1,41 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
-import Card from "./components/Card.jsx";
-import MapView from "./components/MapView.jsx";
-import FilterBar from "./components/FilterBar.jsx";
-import FilterModal from "./components/FilterModal.jsx";
-import Sidebar from "./components/Sidebar.jsx";
-import PreferencesModal from "./components/PreferencesModal.jsx";
-import SavedModal from "./components/SavedModal.jsx";
-import Icon from "./components/Icon.jsx";
+import Card from "./components/Card";
+import MapView from "./components/MapView";
+import FilterBar from "./components/FilterBar";
+import FilterModal from "./components/FilterModal";
+import Sidebar from "./components/Sidebar";
+import PreferencesModal from "./components/PreferencesModal";
+import SavedModal from "./components/SavedModal";
+import Icon from "./components/Icon";
 import {
   ORIGIN, DEFAULT_INTERESTS, WEEKDAYS, MONTHS, DATA_URL,
   load, save, parseDate, relTime, startOfToday, eachDay,
-} from "./utils.jsx";
+} from "./utils";
+import type { Interest, ListingsData, ProcessedListing, Source } from "./types";
 
 const DEFAULT_RADIUS = 25;
 
-export default function App() {
-  const [status, setStatus] = useState("loading"); // loading | ready | error
-  const [data, setData] = useState({ listings: [], generatedAt: null });
+type Status = "loading" | "ready" | "error";
 
-  const [sources, setSources] = useState({ net: true, org: true });
+export default function App() {
+  const [status, setStatus] = useState<Status>("loading");
+  const [data, setData] = useState<ListingsData>({ origin: "", listings: [], generatedAt: null, count: 0 });
+
+  const [sources, setSources] = useState<Record<Source, boolean>>({ net: true, org: true });
   const [radius, setRadius] = useState(DEFAULT_RADIUS);
   const [dateWindow, setDateWindow] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("date");
   const [onlyMatches, setOnlyMatches] = useState(false);
   const [inPersonOnly, setInPersonOnly] = useState(false);
-  const [interests, setInterests] = useState(() =>
+  const [interests, setInterests] = useState<Interest[]>(() =>
     load("wr:interests", DEFAULT_INTERESTS.map((t) => ({ term: t, active: true })))
   );
-  const [saved, setSaved] = useState(() => new Set(load("wr:saved", [])));
+  const [saved, setSaved] = useState<Set<string>>(() => new Set(load<string[]>("wr:saved", [])));
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
-  const [hoveredId, setHoveredId] = useState(null);
-  const [mobileView, setMobileView] = useState("list"); // list | map
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
 
   useEffect(() => {
     fetch(DATA_URL, { cache: "no-store" })
@@ -54,17 +57,17 @@ export default function App() {
 
   const activeTerms = interests.filter((i) => i.active).map((i) => i.term.toLowerCase());
 
-  const toggleSource = (k) => setSources((s) => ({ ...s, [k]: !s[k] }));
-  const toggleInterest = (term) =>
+  const toggleSource = (k: Source) => setSources((s) => ({ ...s, [k]: !s[k] }));
+  const toggleInterest = (term: string) =>
     setInterests((list) => list.map((i) => (i.term === term ? { ...i, active: !i.active } : i)));
-  const addInterest = (term) =>
+  const addInterest = (term: string) =>
     setInterests((list) => (list.some((i) => i.term === term) ? list : [...list, { term, active: true }]));
-  const removeInterest = (term) =>
+  const removeInterest = (term: string) =>
     setInterests((list) => list.filter((i) => i.term !== term));
-  const toggleSaved = (id) =>
+  const toggleSaved = (id: string) =>
     setSaved((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const processed = useMemo(() => {
+  const processed = useMemo<ProcessedListing[]>(() => {
     // Keep listings whose date couldn't be parsed instead of silently dropping
     // them — they surface as a "needs review" group at the end so bad scraper
     // data is visible rather than invisible.
@@ -87,13 +90,13 @@ export default function App() {
       if (inPersonOnly && r.saleType === "online") return false;
       if (q && !(r.title + " " + r.description + " " + r.company).toLowerCase().includes(q)) return false;
       if (!r.start) return true; // can't date-filter what we couldn't parse — always surface it
-      if (r.end < today) return false; // hide finished sales
+      if (r.end && r.end < today) return false; // hide finished sales
       if (dateWindow !== "all") {
-        const days = Math.round((r.start - today) / 86400000);
+        const days = Math.round((r.start.getTime() - today.getTime()) / 86400000);
         if (dateWindow === "7d" && days > 7) return false;
         if (dateWindow === "weekend") {
           if (days > 9) return false;
-          const runsWeekend = eachDay(r.start, r.end).some((d) => [5, 6, 0].includes(d.getDay()));
+          const runsWeekend = eachDay(r.start, r.end ?? r.start).some((d) => [5, 6, 0].includes(d.getDay()));
           if (!runsWeekend) return false;
         }
       }
@@ -104,23 +107,24 @@ export default function App() {
   const sorted = useMemo(() => {
     const arr = [...filtered];
     const far = Number.POSITIVE_INFINITY;
-    const byValidity = (a, b) => (a.start ? 0 : 1) - (b.start ? 0 : 1); // undated always last
+    const time = (d: Date | null) => (d ? d.getTime() : far);
+    const byValidity = (a: ProcessedListing, b: ProcessedListing) => (a.start ? 0 : 1) - (b.start ? 0 : 1); // undated always last
     if (sort === "distance") arr.sort((a, b) => byValidity(a, b) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
-    else if (sort === "relevance") arr.sort((a, b) => byValidity(a, b) || b.relevance - a.relevance || (a.start ?? far) - (b.start ?? far));
-    else arr.sort((a, b) => byValidity(a, b) || (a.start ?? far) - (b.start ?? far) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
+    else if (sort === "relevance") arr.sort((a, b) => byValidity(a, b) || b.relevance - a.relevance || time(a.start) - time(b.start));
+    else arr.sort((a, b) => byValidity(a, b) || time(a.start) - time(b.start) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
     return arr;
   }, [filtered, sort]);
 
   const groups = useMemo(() => {
-    const map = new Map();
-    const needsReview = [];
+    const map = new Map<string, { date: Date; items: ProcessedListing[] }>();
+    const needsReview: ProcessedListing[] = [];
     for (const r of sorted) {
       if (!r.start) { needsReview.push(r); continue; }
       const key = r.start.toDateString();
       if (!map.has(key)) map.set(key, { date: r.start, items: [] });
-      map.get(key).items.push(r);
+      map.get(key)!.items.push(r);
     }
-    const out = [...map.values()];
+    const out: { date: Date | null; items: ProcessedListing[] }[] = [...map.values()];
     if (needsReview.length) out.push({ date: null, items: needsReview });
     return out;
   }, [sorted]);
@@ -135,11 +139,11 @@ export default function App() {
     (onlyMatches ? 1 : 0);
 
   const savedListings = useMemo(
-    () => processed.filter((r) => saved.has(r.id)).sort((a, b) => a.start - b.start),
+    () => processed.filter((r) => saved.has(r.id)).sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0)),
     [processed, saved]
   );
 
-  const cardProps = (r, opts = {}) => ({
+  const cardProps = (r: ProcessedListing, opts: Partial<{ showDate: boolean }> = {}) => ({
     r,
     terms: activeTerms,
     saved: saved.has(r.id),

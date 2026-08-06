@@ -26,6 +26,10 @@ export interface Listing {
 export interface ProcessedListing extends Listing {
   start: Date | null;
   end: Date | null;
+  // start clamped to today for sales that are already underway (start in the
+  // past, end still upcoming) — what to actually show/group by, since "started
+  // a week ago" reads as stale even though the sale is still running.
+  displayStart: Date | null;
   matches: string[];
   relevance: number;
 }

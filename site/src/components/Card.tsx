@@ -135,7 +135,7 @@ export default function Card({ r, terms, saved, onSave, showDate, selected, onHo
           >
             {r.saleType}
           </Badge>
-          {showDate && r.start && <Text as="span" fontFamily="mono" color="ink">{fmtRange(r.start, r.end)}</Text>}
+          {showDate && r.displayStart && <Text as="span" fontFamily="mono" color="ink">{fmtRange(r.displayStart, r.end)}</Text>}
           {showDate && !r.start && (
             <Text as="span" fontFamily="mono" color="ink" title="Raw scraper date fields">
               unparsed date: {r.startDate ?? "null"} → {r.endDate ?? "null"}

@@ -41,8 +41,10 @@ export function fmtDay(d: Date): string { return `${WEEKDAYS[d.getDay()]} ${MONT
 export function fmtRange(a: Date | null, b: Date | null): string {
   if (!a) return "";
   if (!b || a.getTime() === b.getTime()) return fmtDay(a);
-  const sameMonth = a.getMonth() === b.getMonth();
-  return `${WEEKDAYS[a.getDay()]}–${WEEKDAYS[b.getDay()]}, ${MONTHS[a.getMonth()]} ${a.getDate()}${sameMonth ? "" : " " + MONTHS[b.getMonth()]}–${b.getDate()}`;
+  const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  const start = `${MONTHS[a.getMonth()]} ${a.getDate()}`;
+  const end = sameMonth ? `${b.getDate()}` : `${MONTHS[b.getMonth()]} ${b.getDate()}`;
+  return `${WEEKDAYS[a.getDay()]}–${WEEKDAYS[b.getDay()]}, ${start}–${end}`;
 }
 export function relTime(iso: string): string {
   const then = new Date(iso);

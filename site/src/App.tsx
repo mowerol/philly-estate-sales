@@ -69,12 +69,17 @@ export default function App() {
     // Keep listings whose date couldn't be parsed instead of silently dropping
     // them — they surface as a "needs review" group at the end so bad scraper
     // data is visible rather than invisible.
+    const today = startOfToday();
     return (data.listings || []).map((r) => {
       const start = parseDate(r.startDate);
       const end = parseDate(r.endDate) || start;
+      // Sales that started before today but are still running (e.g. multi-week
+      // online auctions) should read as happening "as of today", not as if they
+      // started however long ago.
+      const displayStart = start && start < today ? today : start;
       const hay = (r.title + " " + r.description).toLowerCase();
       const matches = activeTerms.filter((t) => hay.includes(t));
-      return { ...r, start, end, matches, relevance: matches.length };
+      return { ...r, start, end, displayStart, matches, relevance: matches.length };
     });
   }, [data, activeTerms.join(",")]);
 
@@ -108,8 +113,8 @@ export default function App() {
     const time = (d: Date | null) => (d ? d.getTime() : far);
     const byValidity = (a: ProcessedListing, b: ProcessedListing) => (a.start ? 0 : 1) - (b.start ? 0 : 1); // undated always last
     if (sort === "distance") arr.sort((a, b) => byValidity(a, b) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
-    else if (sort === "relevance") arr.sort((a, b) => byValidity(a, b) || b.relevance - a.relevance || time(a.start) - time(b.start));
-    else arr.sort((a, b) => byValidity(a, b) || time(a.start) - time(b.start) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
+    else if (sort === "relevance") arr.sort((a, b) => byValidity(a, b) || b.relevance - a.relevance || time(a.displayStart) - time(b.displayStart));
+    else arr.sort((a, b) => byValidity(a, b) || time(a.displayStart) - time(b.displayStart) || (a.distanceMi ?? far) - (b.distanceMi ?? far));
     return arr;
   }, [filtered, sort]);
 
@@ -117,9 +122,9 @@ export default function App() {
     const map = new Map<string, { date: Date; items: ProcessedListing[] }>();
     const needsReview: ProcessedListing[] = [];
     for (const r of sorted) {
-      if (!r.start) { needsReview.push(r); continue; }
-      const key = r.start.toDateString();
-      if (!map.has(key)) map.set(key, { date: r.start, items: [] });
+      if (!r.displayStart) { needsReview.push(r); continue; }
+      const key = r.displayStart.toDateString();
+      if (!map.has(key)) map.set(key, { date: r.displayStart, items: [] });
       map.get(key)!.items.push(r);
     }
     const out: { date: Date | null; items: ProcessedListing[] }[] = [...map.values()];
@@ -137,7 +142,7 @@ export default function App() {
     (onlyMatches ? 1 : 0);
 
   const savedListings = useMemo(
-    () => processed.filter((r) => saved.has(r.id)).sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0)),
+    () => processed.filter((r) => saved.has(r.id)).sort((a, b) => (a.displayStart?.getTime() ?? 0) - (b.displayStart?.getTime() ?? 0)),
     [processed, saved]
   );
 

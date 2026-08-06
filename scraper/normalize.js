@@ -52,11 +52,16 @@ export function shapeListing(raw, source) {
   };
 }
 
-// Drop duplicates that show up on more than one source (same place + same start day).
+// Drop duplicates that show up on more than one source (same place + same title +
+// same start day). Many listings (especially on estatesales.org) withhold the exact
+// address until closer to the sale, coming through with addressLine === "" — keying
+// on address alone would collapse every same-day blank-address listing into one, so
+// title is always part of the key too. Cross-source dupes still merge fine since both
+// sites scrape from the same original posting, so titles match after normalizing.
 export function dedupe(listings) {
   const seen = new Map();
   for (const l of listings) {
-    const key = (l.addressLine + "|" + l.startDate).toLowerCase().replace(/\s+/g, " ").trim();
+    const key = [norm(l.addressLine), norm(l.title), l.startDate].join("|");
     // Prefer the entry with the richer description / more images.
     const prev = seen.get(key);
     if (!prev || score(l) > score(prev)) seen.set(key, l);
@@ -65,6 +70,7 @@ export function dedupe(listings) {
 }
 
 const score = (l) => l.description.length + l.imageCount;
+const norm = (v) => (v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const num = (v) => (v == null || v === "" || isNaN(+v) ? null : +v);
 const clean = (v) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : v);
 const time = (v) => (/^\d{1,2}:\d{2}$/.test(v || "") ? v : null);

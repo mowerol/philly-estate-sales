@@ -7,15 +7,19 @@ const config = defineConfig({
   theme: {
     tokens: {
       colors: {
-        paper: { value: "#f3f2ec" },
-        paper2: { value: "#eae8df" },
-        card: { value: "#fbfaf6" },
-        ink: { value: "#1c2530" },
-        inkSoft: { value: "#5a6570" },
-        line: { value: "#dad8ce" },
-        signal: { value: "#c8462e" },
-        match: { value: "#1f6e5b" },
-        matchSoft: { value: "#e4ede8" },
+        paper: { value: "#F6F5F0" },
+        paper2: { value: "#EDEBE3" },
+        paperTint: { value: "#F1EFE8" },
+        card: { value: "#FFFFFF" },
+        ink: { value: "#16211C" },
+        inkSoft: { value: "#6B7770" },
+        inkMuted: { value: "#8A948D" },
+        line: { value: "#E3E1D8" },
+        lineStrong: { value: "#C9C6BA" },
+        signal: { value: "#C8462E" },
+        match: { value: "#2F8A63" },
+        matchSoft: { value: "#DCF0E4" },
+        matchDeep: { value: "#1B5C40" },
       },
       fonts: {
         heading: { value: "'Fraunces', serif" },
@@ -25,6 +29,8 @@ const config = defineConfig({
       radii: {
         l2: { value: "10px" },
         l3: { value: "12px" },
+        l4: { value: "14px" },
+        l5: { value: "16px" },
       },
     },
     semanticTokens: {

@@ -3,13 +3,21 @@ import Icon from "./Icon";
 import { SOURCES, ORIGIN } from "../utils";
 import type { Source } from "../types";
 
+const WINDOWS: [string, string][] = [["weekend", "This weekend"], ["7d", "Next 7 days"], ["all", "All upcoming"]];
+
 interface FilterModalProps {
   open: boolean;
   onClose: () => void;
+  query: string;
+  setQuery: (v: string) => void;
+  dateWindow: string;
+  setDateWindow: (v: string) => void;
   sources: Record<Source, boolean>;
   toggleSource: (key: Source) => void;
   radius: number;
   setRadius: (v: number) => void;
+  inPersonOnly: boolean;
+  setInPersonOnly: (updater: (v: boolean) => boolean) => void;
   onlyMatches: boolean;
   setOnlyMatches: (updater: (v: boolean) => boolean) => void;
 }
@@ -17,10 +25,16 @@ interface FilterModalProps {
 export default function FilterModal({
   open,
   onClose,
+  query,
+  setQuery,
+  dateWindow,
+  setDateWindow,
   sources,
   toggleSource,
   radius,
   setRadius,
+  inPersonOnly,
+  setInPersonOnly,
   onlyMatches,
   setOnlyMatches,
 }: FilterModalProps) {
@@ -38,6 +52,28 @@ export default function FilterModal({
             </Dialog.Header>
 
             <Dialog.Body className="es-dialog-body">
+              <div className="es-panel">
+                <p className="es-plabel">Search</p>
+                <div className="es-search">
+                  <span className="es-si"><Icon name="search" /></span>
+                  <input
+                    placeholder="Search titles, companies, descriptions…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="es-panel">
+                <p className="es-plabel">When</p>
+                {WINDOWS.map(([v, l]) => (
+                  <div key={v} className="es-row" data-on={dateWindow === v} onClick={() => setDateWindow(v)}>
+                    <span className="es-check"><Icon name="bookmarkFill" /></span>
+                    <span className="es-srcname">{l}</span>
+                  </div>
+                ))}
+              </div>
+
               <div className="es-panel">
                 <p className="es-plabel">Sources</p>
                 {(Object.entries(SOURCES) as [Source, (typeof SOURCES)[Source]][]).map(([k, s]) => (
@@ -64,6 +100,10 @@ export default function FilterModal({
               </div>
 
               <div className="es-panel">
+                <div className="es-row" data-on={inPersonOnly} onClick={() => setInPersonOnly((v) => !v)}>
+                  <span className="es-check"><Icon name="bookmarkFill" /></span>
+                  <span className="es-srcname">In-person only</span>
+                </div>
                 <div className="es-row" data-on={onlyMatches} onClick={() => setOnlyMatches((v) => !v)}>
                   <span className="es-check"><Icon name="bookmarkFill" /></span>
                   <span className="es-srcname">Only show tracked-interest matches</span>

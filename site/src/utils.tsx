@@ -38,6 +38,15 @@ export function fmtTime(t: string | null): string | null {
   return `${hh}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 export function fmtDay(d: Date): string { return `${WEEKDAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${d.getDate()}`; }
+// Day-group header label: "Today" / "Tomorrow" for the first two buckets,
+// the full weekday name after that (matches the redesign's day headers).
+export function dayLabel(d: Date, today: Date): string {
+  const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return FULL_WEEKDAYS[d.getDay()];
+}
+const FULL_WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export function fmtRange(a: Date | null, b: Date | null): string {
   if (!a) return "";
   if (!b || a.getTime() === b.getTime()) return fmtDay(a);

@@ -1,9 +1,6 @@
-import { useState } from "react";
-import {
-  Badge, Box, Button, Card as ChakraCard, HStack, IconButton, Image, Tag, Text, VStack, Wrap,
-} from "@chakra-ui/react";
+import { Badge, Box, Button, Card as ChakraCard, HStack, Image, Tag, Text, Wrap } from "@chakra-ui/react";
 import Icon from "./Icon";
-import { SOURCES, fmtTime, fmtRange, highlight } from "../utils";
+import { fmtTime, fmtRange, highlight } from "../utils";
 import type { ProcessedListing } from "../types";
 
 interface CardProps {
@@ -18,13 +15,18 @@ interface CardProps {
   onSelect: () => void;
 }
 
-const DESC_TRUNCATE_AT = 180;
+const SALE_TYPE_LABEL: Record<string, string> = {
+  estate: "ESTATE", moving: "MOVING", tag: "TAG", auction: "AUCTION", online: "ONLINE", garage: "GARAGE",
+};
 
-export default function Card({ r, terms, saved, onSave, showDate, selected, onHoverStart, onHoverEnd, onSelect }: CardProps) {
-  const src = SOURCES[r.source] || SOURCES.net;
+// Hover already links a card to its map marker (see MapView's active pill
+// state) — a click's job is to take you to the actual listing, not to
+// re-highlight what hovering already highlighted. `onSelect` stays part of
+// the props contract (still used the other direction: clicking a map marker
+// selects + scrolls to its card) even though the card itself no longer calls it.
+export default function Card({ r, terms, saved, onSave, showDate, selected, onHoverStart, onHoverEnd }: CardProps) {
   const times = fmtTime(r.startTime) && fmtTime(r.endTime) ? `${fmtTime(r.startTime)}–${fmtTime(r.endTime)}` : null;
-  const [expanded, setExpanded] = useState(false);
-  const isLong = r.description.length > DESC_TRUNCATE_AT;
+  const openListing = () => { if (r.sourceUrl) window.open(r.sourceUrl, "_blank", "noopener,noreferrer"); };
 
   return (
     <ChakraCard.Root
@@ -34,238 +36,133 @@ export default function Card({ r, terms, saved, onSave, showDate, selected, onHo
       data-selected={selected ? "true" : undefined}
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
-      onClick={onSelect}
-      display="flex"
-      flexDirection={{ base: "column", sm: "row" }}
-      alignItems="stretch"
-      gap="16px"
-      bg="card"
-      border="1px solid"
-      borderColor="line"
-      borderRadius="l3"
-      boxShadow="var(--shadow)"
-      p="16px"
-      mb="12px"
+      onClick={openListing}
       cursor="pointer"
-      transition="transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease"
+      transition="opacity 0.14s ease"
       css={{
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "0 2px 0 rgba(28, 37, 48, 0.05), 0 16px 30px -20px rgba(28, 37, 48, 0.5)",
-        },
-        "&[data-selected='true']": { borderColor: "match", boxShadow: "0 0 0 2px {colors.matchSoft}" },
+        "&:hover": { opacity: 0.94 },
+        "&[data-selected='true'] .es-card-frame": { boxShadow: "0 0 0 2px {colors.match}" },
       }}
     >
-      <Box
-        position="relative"
-        w={{ base: "100%", sm: "170px" }}
-        h={{ base: "200px", sm: "170px" }}
-        borderRadius="l2"
-        bg="paper2"
-        border="1px solid"
-        borderColor="line"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        color="inkSoft"
-        overflow="hidden"
-        flex="none"
-      >
+      <Box className="es-card-frame" position="relative" borderRadius="l4" overflow="hidden" bg="paper2" aspectRatio="4 / 3" transition="box-shadow 0.14s ease">
         {r.imageUrl ? (
           <Image w="100%" h="100%" objectFit="cover" src={r.imageUrl} alt="" loading="lazy" />
         ) : (
-          <Icon name="img" size={18} />
+          <Box w="100%" h="100%" display="flex" alignItems="center" justifyContent="center" color="inkMuted">
+            <Icon name="img" size={22} />
+          </Box>
         )}
-        <Badge
+
+        <Button
           unstyled
+          type="button"
+          aria-label={saved ? "Remove from saved" : "Save sale"}
           position="absolute"
-          right="5px"
-          bottom="5px"
-          display="inline-flex"
+          top="10px"
+          right="10px"
+          w="32px"
+          h="32px"
+          display="flex"
           alignItems="center"
-          gap="3px"
-          bg="rgba(28, 37, 48, 0.7)"
-          color="white"
-          fontFamily="mono"
-          fontSize="10px"
-          px="6px"
-          py="2px"
-          borderRadius="20px"
+          justifyContent="center"
+          border="none"
+          borderRadius="999px"
+          bg="rgba(255,255,255,.92)"
+          backdropFilter="blur(4px)"
+          boxShadow="0 2px 8px rgba(22,33,28,.18)"
+          cursor="pointer"
+          transition="background 0.12s"
+          css={{ "&:hover": { background: "#fff" } }}
+          onClick={(e) => { e.stopPropagation(); onSave(); }}
         >
-          <Icon name="img" size={11} />{r.imageCount}
-        </Badge>
+          <Icon name={saved ? "bookmarkFill" : "bookmark"} size={15} />
+        </Button>
+
+        <HStack position="absolute" left="10px" bottom="10px" gap="6px">
+          <Badge unstyled fontFamily="mono" fontSize="10.5px" fontWeight="700" letterSpacing="0.06em" color="ink" bg="rgba(255,255,255,.94)" borderRadius="6px" px="8px" py="5px">
+            {SALE_TYPE_LABEL[r.saleType] || r.saleType.toUpperCase()}
+          </Badge>
+          <Badge unstyled display="inline-flex" alignItems="center" gap="4px" fontFamily="mono" fontSize="10.5px" color="ink" bg="rgba(255,255,255,.94)" borderRadius="6px" px="8px" py="5px">
+            <Icon name="img" size={10} />{r.imageCount}
+          </Badge>
+        </HStack>
       </Box>
 
-      <Box flex="1" minW={0}>
-        <ChakraCard.Title
-          as="h3"
-          fontFamily="heading"
-          fontWeight="600"
-          fontSize="16px"
-          lineHeight="1.25"
-          m="0 0 4px"
-          color="ink"
-        >
-          {r.title}
-        </ChakraCard.Title>
-        <Wrap gap="5px 12px" align="center" fontSize="12.5px" color="inkSoft" mb="8px">
-          {r.company && <Text as="span" color="inkSoft">{r.company}</Text>}
-          {r.addressLine && (
-            <HStack as="span" gap="4px">
-              <Icon name="pin" size={13} />{r.addressLine}{r.city ? `, ${r.city}` : ""}
-            </HStack>
-          )}
-          {r.distanceMi != null && <Text as="span" fontFamily="mono" color="ink">{r.distanceMi.toFixed(1)} mi</Text>}
-          {times && (
-            <HStack as="span" gap="4px">
-              <Icon name="clock" size={13} />{times}
-            </HStack>
-          )}
-          <Badge
-            unstyled
-            fontFamily="mono"
-            fontSize="10px"
-            textTransform="uppercase"
-            letterSpacing="0.06em"
-            px="6px"
-            py="2px"
-            borderRadius="5px"
-            bg="paper2"
-            color="inkSoft"
+      <Box pt="12px" px="2px">
+        <HStack align="baseline" justify="space-between" gap="12px">
+          <ChakraCard.Title
+            as="h3"
+            fontFamily="body"
+            fontWeight="600"
+            fontSize="15px"
+            lineHeight="1.32"
+            letterSpacing="-0.008em"
+            m="0"
+            color="ink"
+            lineClamp={2}
+            css={{ "& mark": { background: "matchSoft", color: "matchDeep", fontWeight: "700", padding: "0 2px", borderRadius: "3px" } }}
           >
-            {r.saleType}
-          </Badge>
-          {showDate && r.displayStart && <Text as="span" fontFamily="mono" color="ink">{fmtRange(r.displayStart, r.end)}</Text>}
-          {showDate && !r.start && (
-            <Text as="span" fontFamily="mono" color="ink" title="Raw scraper date fields">
-              unparsed date: {r.startDate ?? "null"} → {r.endDate ?? "null"}
+            {highlight(r.title, terms)}
+          </ChakraCard.Title>
+          {r.distanceMi != null && (
+            <Text as="span" fontFamily="mono" fontSize="11.5px" color="inkSoft" whiteSpace="nowrap" flex="none">
+              {r.distanceMi.toFixed(1)} mi
+            </Text>
+          )}
+        </HStack>
+
+        {r.company && (
+          <Text mt="6px" fontSize="13px" color="inkSoft" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+            {r.company}
+          </Text>
+        )}
+
+        <Wrap mt="8px" gap="5px 8px" align="center" fontSize="13px">
+          {times && <Text as="span" fontWeight="600" color="ink">{times}</Text>}
+          {times && (r.addressLine || r.city) && <Text as="span" color="lineStrong">·</Text>}
+          {(r.addressLine || r.city) && (
+            <Text as="span" color="inkSoft" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+              {r.addressLine}{r.addressLine && r.city ? ", " : ""}{r.city}
+            </Text>
+          )}
+          {showDate && r.displayStart && (
+            <Text as="span" fontFamily="mono" fontSize="11.5px" color="inkMuted">· {fmtRange(r.displayStart, r.end)}</Text>
+          )}
+          {showDate && !r.displayStart && (
+            <Text as="span" fontFamily="mono" fontSize="11.5px" color="signal" title="Raw scraper date fields">
+              · unparsed date: {r.startDate ?? "null"} → {r.endDate ?? "null"}
             </Text>
           )}
         </Wrap>
-        {r.description && (
-          <>
-            <Text
-              fontSize="13px"
-              lineHeight="1.5"
-              color="#3a444f"
-              m={isLong ? "0 0 4px" : "0 0 10px"}
-              lineClamp={expanded ? undefined : 3}
-              css={{ "& mark": { background: "matchSoft", color: "match", fontWeight: "600", padding: "0 2px", borderRadius: "3px" } }}
-            >
-              {highlight(r.description, terms)}
-            </Text>
-            {isLong && (
-              <Button
-                unstyled
-                type="button"
-                display="inline-block"
-                fontSize="12px"
-                fontWeight="600"
-                color="match"
-                bg="none"
-                border="none"
-                p="0"
-                mb="10px"
-                cursor="pointer"
-                css={{ "&:hover": { textDecoration: "underline" } }}
-                onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-              >
-                {expanded ? "Show less" : "Read more"}
-              </Button>
-            )}
-          </>
-        )}
+
         {r.matches.length > 0 && (
-          <Wrap gap="5px" align="center">
-            <HStack as="span" gap="5px" fontFamily="mono" fontSize="10px" letterSpacing="0.06em" textTransform="uppercase" color="match">
-              <Box as="span" w="6px" h="6px" borderRadius="50%" bg="match" />
+          <Wrap mt="9px" gap="5px" align="center">
+            <HStack gap="5px" fontFamily="mono" fontSize="10px" letterSpacing="0.06em" textTransform="uppercase" color="match">
+              <Box w="6px" h="6px" borderRadius="50%" bg="match" />
               {r.matches.length} match{r.matches.length === 1 ? "" : "es"}
             </HStack>
-            {r.matches.slice(0, 5).map((m) => (
-              <Tag.Root key={m} unstyled bg="matchSoft" color="match" fontWeight="500" fontSize="11px" borderRadius="5px" px="7px" py="2px">
+            {r.matches.slice(0, 4).map((m) => (
+              <Tag.Root key={m} unstyled bg="matchSoft" color="matchDeep" fontWeight="500" fontSize="11px" borderRadius="5px" px="7px" py="2px">
                 <Tag.Label>{m}</Tag.Label>
               </Tag.Root>
             ))}
           </Wrap>
         )}
-      </Box>
 
-      <VStack
-        direction={{ base: "row", sm: "column" }}
-        align={{ base: "center", sm: "flex-end" }}
-        justify="space-between"
-        gap="10px"
-        flex="none"
-        w={{ base: "100%", sm: "auto" }}
-      >
-        <Badge
-          unstyled
-          display="inline-flex"
-          alignItems="center"
-          gap="6px"
-          fontFamily="mono"
-          fontSize="10px"
-          letterSpacing="0.06em"
-          color="inkSoft"
-          border="1px solid"
-          borderColor="line"
-          px="8px"
-          py="3px"
-          borderRadius="20px"
-          whiteSpace="nowrap"
-        >
-          <Box as="span" w="8px" h="8px" borderRadius="50%" bg={src.dot} />
-          {src.code}
-        </Badge>
-        <HStack gap="8px">
-          <Button
-            unstyled
-            display="inline-flex"
-            alignItems="center"
-            gap="6px"
-            fontSize="12px"
-            fontFamily="inherit"
-            border="1px solid"
-            borderColor={saved ? "ink" : "line"}
-            bg={saved ? "ink" : "paper"}
-            color={saved ? "paper" : "ink"}
-            px="10px"
-            py="6px"
-            borderRadius="8px"
-            cursor="pointer"
-            transition="all 0.12s"
-            whiteSpace="nowrap"
-            css={{ "&:hover": { borderColor: "ink" } }}
-            onClick={(e) => { e.stopPropagation(); onSave(); }}
-          >
-            <Icon name={saved ? "bookmarkFill" : "bookmark"} size={14} />{saved ? "Saved" : "Save"}
-          </Button>
-          {r.sourceUrl && (
-            <IconButton
-              asChild
-              unstyled
-              display="inline-flex"
-              alignItems="center"
-              justifyContent="center"
-              fontSize="12px"
-              border="1px solid"
-              borderColor="line"
-              bg="paper"
-              color="inkSoft"
-              px="10px"
-              py="6px"
-              borderRadius="8px"
-              cursor="pointer"
-              transition="all 0.12s"
-              css={{ "&:hover": { borderColor: "ink" } }}
+        {r.sourceUrl && (
+          <Box mt="9px">
+            <a
+              href={r.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", fontWeight: 600, color: "var(--match)" }}
             >
-              <a href={r.sourceUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                <Icon name="ext" size={14} />
-              </a>
-            </IconButton>
-          )}
-        </HStack>
-      </VStack>
+              View listing <Icon name="ext" size={11} />
+            </a>
+          </Box>
+        )}
+      </Box>
     </ChakraCard.Root>
   );
 }

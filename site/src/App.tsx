@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
+import { Menu, Portal } from "@chakra-ui/react";
 import Card from "./components/Card";
 import MapView from "./components/MapView";
-import FilterBar from "./components/FilterBar";
+import Header from "./components/Header";
 import FilterModal from "./components/FilterModal";
-import Sidebar from "./components/Sidebar";
 import PreferencesModal from "./components/PreferencesModal";
 import SavedModal from "./components/SavedModal";
 import Icon from "./components/Icon";
 import {
-  ORIGIN, WEEKDAYS, MONTHS, DATA_URL, LOGO_URL,
-  load, save, parseDate, relTime, startOfToday, eachDay,
+  MONTHS, DATA_URL,
+  load, save, parseDate, relTime, startOfToday, eachDay, dayLabel,
 } from "./utils";
 import type { Interest, ListingsData, ProcessedListing, Source } from "./types";
 
 const DEFAULT_RADIUS = 25;
+const PAGE_SIZE = 24;
+const SORTS: [string, string][] = [["date", "Soonest"], ["distance", "Nearest"], ["relevance", "Best match"]];
+const LOCATION_LABEL = "Manayunk";
 
 type Status = "loading" | "ready" | "error";
 
@@ -37,6 +40,12 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
+  const [mapOpen, setMapOpen] = useState(true);
+  // Category tabs = tracked interests, for now purely cosmetic — not yet
+  // wired to actual filtering. Revisit once there's a real taxonomy to
+  // filter sales against.
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     fetch(DATA_URL, { cache: "no-store" })
@@ -52,6 +61,12 @@ export default function App() {
     if (!selectedId) return;
     document.getElementById(`card-${selectedId}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [selectedId]);
+
+  // Reveal-more pagination resets whenever the active filter/sort set changes,
+  // so switching filters never leaves you stranded three pages deep.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [query, dateWindow, radius, sources, onlyMatches, inPersonOnly, sort]);
 
   const activeTerms = interests.filter((i) => i.active).map((i) => i.term.toLowerCase());
 
@@ -118,10 +133,12 @@ export default function App() {
     return arr;
   }, [filtered, sort]);
 
+  const visibleSorted = sorted.slice(0, visibleCount);
+
   const groups = useMemo(() => {
     const map = new Map<string, { date: Date; items: ProcessedListing[] }>();
     const needsReview: ProcessedListing[] = [];
-    for (const r of sorted) {
+    for (const r of visibleSorted) {
       if (!r.displayStart) { needsReview.push(r); continue; }
       const key = r.displayStart.toDateString();
       if (!map.has(key)) map.set(key, { date: r.displayStart, items: [] });
@@ -130,7 +147,7 @@ export default function App() {
     const out: { date: Date | null; items: ProcessedListing[] }[] = [...map.values()];
     if (needsReview.length) out.push({ date: null, items: needsReview });
     return out;
-  }, [sorted]);
+  }, [visibleSorted]);
 
   const flat = sort !== "date";
   const sourceKeys = Object.keys(sources);
@@ -139,7 +156,10 @@ export default function App() {
   const filterCount =
     (sourceKeys.length - activeSources) +
     (radius !== DEFAULT_RADIUS ? 1 : 0) +
-    (onlyMatches ? 1 : 0);
+    (onlyMatches ? 1 : 0) +
+    (inPersonOnly ? 1 : 0) +
+    (dateWindow !== "all" ? 1 : 0) +
+    (query.trim() ? 1 : 0);
 
   const savedListings = useMemo(
     () => processed.filter((r) => saved.has(r.id)).sort((a, b) => (a.displayStart?.getTime() ?? 0) - (b.displayStart?.getTime() ?? 0)),
@@ -158,50 +178,113 @@ export default function App() {
     ...opts,
   });
 
+  const titleCopy =
+    dateWindow === "weekend" ? `This weekend near ${LOCATION_LABEL}`
+    : dateWindow === "7d" ? `This week near ${LOCATION_LABEL}`
+    : `Upcoming sales near ${LOCATION_LABEL}`;
+  const daysNote = dateWindow === "weekend" ? "this weekend" : dateWindow === "7d" ? "in the next 7 days" : null;
+  const subline =
+    `${sorted.length} sale${sorted.length === 1 ? "" : "s"}${daysNote ? ` ${daysNote}` : ""} · within ${radius} mi` +
+    (status === "ready" && data.generatedAt ? ` · updated ${relTime(data.generatedAt)}` : "");
+  const sortLabel = SORTS.find(([v]) => v === sort)?.[1];
+
+  const resultsHeader = (
+    <div className="es-resultshdr">
+      <div>
+        <h1 className="es-resulttitle">{titleCopy}</h1>
+        <p className="es-resultsub">{subline}</p>
+      </div>
+      <Menu.Root positioning={{ placement: "bottom-end" }}>
+        <Menu.Trigger asChild>
+          <button className="es-sortbtn" type="button">
+            Sort: {sortLabel}
+            <Icon name="chevronDown" size={12} />
+          </button>
+        </Menu.Trigger>
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content className="es-menu">
+              {SORTS.map(([v, l]) => (
+                <Menu.Item key={v} value={v} data-on={v === sort ? "true" : undefined} onSelect={() => setSort(v)}>
+                  {l}
+                </Menu.Item>
+              ))}
+            </Menu.Content>
+          </Menu.Positioner>
+        </Portal>
+      </Menu.Root>
+    </div>
+  );
+
+  const listContent = (
+    <>
+      {resultsHeader}
+
+      {sorted.length === 0 && (
+        <div className="es-empty">
+          <h3>No sales match this filter</h3>
+          <p>Widen the radius, clear the search, or turn a source back on to see more.</p>
+        </div>
+      )}
+
+      {flat
+        ? <div className="es-grid">{visibleSorted.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)}</div>
+        : groups.map((g) => {
+            if (!g.date) {
+              return (
+                <section key="needs-review">
+                  <div className="es-daybar">
+                    <span className="es-daylabel">Needs review</span>
+                    <span className="es-daydate">date didn't parse</span>
+                    <span className="es-dayrule" />
+                    <span className="es-daycount">{g.items.length} sale{g.items.length === 1 ? "" : "s"}</span>
+                  </div>
+                  <div className="es-grid">{g.items.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)}</div>
+                </section>
+              );
+            }
+            const today = startOfToday();
+            const soon = [5, 6, 0].includes(g.date.getDay());
+            return (
+              <section key={g.date.toDateString()}>
+                <div className="es-daybar">
+                  <span className={`es-daylabel${soon ? " es-wd" : ""}`}>{dayLabel(g.date, today)}</span>
+                  <span className="es-daydate">{MONTHS[g.date.getMonth()]} {g.date.getDate()}</span>
+                  <span className="es-dayrule" />
+                  <span className="es-daycount">{g.items.length} sale{g.items.length === 1 ? "" : "s"}</span>
+                </div>
+                <div className="es-grid">{g.items.map((r) => <Card key={r.id} {...cardProps(r)} />)}</div>
+              </section>
+            );
+          })}
+
+      {sorted.length > 0 && (
+        <div className="es-resultsfooter">
+          <p>Showing {visibleSorted.length} of {sorted.length} sale{sorted.length === 1 ? "" : "s"} within {radius} mi</p>
+          {visibleCount < sorted.length && (
+            <button className="es-showmore" type="button" onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}>
+              Show more sales
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div>
-      <header className="es-top">
-        <div className="es-top-in">
-          <div className="es-brand">
-            <h1 className="es-title">
-              <img className="es-logo" src={LOGO_URL} alt="AllEstateSales" />
-            </h1>
-          </div>
-          <div className="es-locwrap">
-            <button className="es-locpill" type="button">
-              <Icon name="pin" size={13} />
-              Manayunk, Philadelphia · {ORIGIN}
-              <Icon name="chevronDown" size={12} />
-            </button>
-            <span className="es-sync es-mono">
-              {status === "ready" && data.generatedAt ? <>Synced <b>{relTime(data.generatedAt)}</b> · </> : null}
-              {activeSources}/{sourceKeys.length} sources
-            </span>
-          </div>
-        </div>
-      </header>
-
-      <Sidebar
-        onOpenPreferences={() => setPrefsOpen(true)}
-        onOpenSaved={() => setSavedOpen(true)}
+      <Header
         savedCount={saved.size}
+        onOpenSaved={() => setSavedOpen(true)}
+        onOpenPreferences={() => setPrefsOpen(true)}
+        onOpenFilters={() => setFiltersOpen(true)}
+        filterCount={filterCount}
+        mapOn={mapOpen}
+        onToggleMap={() => setMapOpen((v) => !v)}
+        interests={interests}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
       />
-      <div className="es-page">
-      {status === "ready" && (
-        <FilterBar
-          query={query}
-          setQuery={setQuery}
-          sort={sort}
-          setSort={setSort}
-          dateWindow={dateWindow}
-          setDateWindow={setDateWindow}
-          inPersonOnly={inPersonOnly}
-          setInPersonOnly={setInPersonOnly}
-          onOpenFilters={() => setFiltersOpen(true)}
-          filterCount={filterCount}
-          resultCount={sorted.length}
-        />
-      )}
 
       <div className="es-mapshell">
         {status === "loading" && <div className="es-empty"><p>Loading sales…</p></div>}
@@ -213,73 +296,46 @@ export default function App() {
         )}
 
         {status === "ready" && (
-          <div className="es-splitgrid" data-mobileview={mobileView}>
-            <div className="es-mapcol">
-              <MapView
-                listings={sorted}
-                selectedId={selectedId}
-                hoveredId={hoveredId}
-                onSelect={setSelectedId}
-                onHoverStart={setHoveredId}
-                onHoverEnd={() => setHoveredId(null)}
-              />
+          mapOpen ? (
+            <div className="es-splitgrid" data-mobileview={mobileView}>
+              <div className="es-listcol">{listContent}</div>
+              <div className="es-mapcol">
+                <MapView
+                  listings={visibleSorted}
+                  selectedId={selectedId}
+                  hoveredId={hoveredId}
+                  onSelect={setSelectedId}
+                  onHoverStart={setHoveredId}
+                  onHoverEnd={() => setHoveredId(null)}
+                />
+              </div>
+              <button
+                className="es-mobiletoggle"
+                onClick={() => setMobileView((v) => (v === "map" ? "list" : "map"))}
+              >
+                <Icon name={mobileView === "map" ? "list" : "map"} size={15} />
+                {mobileView === "map" ? "List" : "Map"}
+              </button>
             </div>
-
-            <div className="es-listcol">
-              {sorted.length === 0 && (
-                <div className="es-empty">
-                  <h3>No sales match this filter</h3>
-                  <p>Widen the radius, clear the search, or turn a source back on to see more.</p>
-                </div>
-              )}
-
-              {flat
-                ? sorted.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)
-                : groups.map((g) => {
-                    if (!g.date) {
-                      return (
-                        <section key="needs-review">
-                          <div className="es-daybar">
-                            <span className="es-daydate">Needs review · date didn't parse</span>
-                            <span className="es-dayrule" />
-                            <span className="es-daycount">{g.items.length} sale{g.items.length === 1 ? "" : "s"}</span>
-                          </div>
-                          {g.items.map((r) => <Card key={r.id} {...cardProps(r, { showDate: true })} />)}
-                        </section>
-                      );
-                    }
-                    const soon = [5, 6, 0].includes(g.date.getDay());
-                    return (
-                      <section key={g.date.toDateString()}>
-                        <div className="es-daybar">
-                          <span className="es-daydate"><span className={soon ? "es-wd" : ""}>{WEEKDAYS[g.date.getDay()]}</span> · {MONTHS[g.date.getMonth()]} {g.date.getDate()}</span>
-                          <span className="es-dayrule" />
-                          <span className="es-daycount">{g.items.length} sale{g.items.length === 1 ? "" : "s"}</span>
-                        </div>
-                        {g.items.map((r) => <Card key={r.id} {...cardProps(r)} />)}
-                      </section>
-                    );
-                  })}
-            </div>
-
-            <button
-              className="es-mobiletoggle"
-              onClick={() => setMobileView((v) => (v === "map" ? "list" : "map"))}
-            >
-              <Icon name={mobileView === "map" ? "list" : "map"} size={15} />
-              {mobileView === "map" ? "List" : "Map"}
-            </button>
-          </div>
+          ) : (
+            <div className="es-listcol">{listContent}</div>
+          )
         )}
       </div>
 
       <FilterModal
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
+        query={query}
+        setQuery={setQuery}
+        dateWindow={dateWindow}
+        setDateWindow={setDateWindow}
         sources={sources}
         toggleSource={toggleSource}
         radius={radius}
         setRadius={setRadius}
+        inPersonOnly={inPersonOnly}
+        setInPersonOnly={setInPersonOnly}
         onlyMatches={onlyMatches}
         setOnlyMatches={setOnlyMatches}
       />
@@ -300,7 +356,6 @@ export default function App() {
         terms={activeTerms}
         onSave={toggleSaved}
       />
-      </div>
     </div>
   );
 }
